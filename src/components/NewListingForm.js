@@ -1,10 +1,10 @@
 import axios from "axios";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import { useNavigate } from "react-router-dom";
-
 import { BACKEND_URL } from "../constants";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const NewListingForm = () => {
   const [title, setTitle] = useState("");
@@ -13,7 +13,36 @@ const NewListingForm = () => {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [shippingDetails, setShippingDetails] = useState("");
+  const [accessToken, setAccessToken] = useState("");
   const navigate = useNavigate();
+  const { isAuthenticated, loginWithRedirect, user, getAccessTokenSilently } =
+    useAuth0();
+
+  useEffect(() => {
+    logIn();
+  }, []);
+
+  const checkUser = async () => {
+    if (isAuthenticated) {
+      let token = await getAccessTokenSilently();
+      console.log(token);
+      setAccessToken(token);
+    }
+  };
+
+  useEffect(() => {
+    checkUser();
+  }, []);
+
+  const logIn = async () => {
+    if (!isAuthenticated) {
+      await loginWithRedirect({
+        authorizationParams: {
+          redirect_uri: "http://localhost:3001/listings/new",
+        },
+      });
+    }
+  };
 
   const handleChange = (event) => {
     switch (event.target.name) {
@@ -45,14 +74,23 @@ const NewListingForm = () => {
 
     // Send request to create new listing in backend
     axios
-      .post(`${BACKEND_URL}/listings`, {
-        title,
-        category,
-        condition,
-        price,
-        description,
-        shippingDetails,
-      })
+      .post(
+        `${BACKEND_URL}/listings`,
+        {
+          title,
+          category,
+          condition,
+          price,
+          description,
+          shippingDetails,
+          sellerEmail: user.email,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      )
       .then((res) => {
         // Clear form state
         setTitle("");
